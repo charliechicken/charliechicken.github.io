@@ -1469,25 +1469,25 @@
         }
 
         async function handleSignUp() {
-            const email = document.getElementById('authEmail').value;
-            const password = document.getElementById('authPassword').value;
-            
-            try {
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                const user = userCredential.user;
-                await window.db.ref("users/" + user.uid).set({
-                    email: user.email,
-                    progress: {
-                        questionsAnswered: 0,
-                        correctAnswers: 0,
-                        history: []
-                    }
-                });
-                $('#authModal').modal('hide');
-            } catch (error) {
-                alert(`Error: ${error.message}`);
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    
+    try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        await window.db.ref("users/" + user.uid).set({
+            email: user.email,
+            progress: {
+                questionsAnswered: 0,
+                correctAnswers: 0,
+                history: []
             }
-        }
+        });
+        $('#authModal').modal('hide');
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
 
         async function handleSignIn() {
             const email = document.getElementById('authEmail').value;
@@ -1528,15 +1528,12 @@
                     setName: currentQuestion.setName || ''
                 };
                 console.log('Saving question data:', questionData);
-                saveUserProgress(questionData).then(() => {
-                    console.log('Progress saved successfully');
-                }).catch(error => {
-                    console.error('Error saving progress:', error);
-                });
+                saveUserProgress(questionData);
             } else {
                 console.log('No user logged in, skipping progress save');
             }
             
+            showResult(isCorrect, correctAnswer);
             return isCorrect;
         }
 
