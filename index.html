@@ -203,6 +203,22 @@
             outline: none;
         }
 
+        .category-label {
+            font-size: 0.9em;
+            color: #666;
+            font-style: italic;
+            margin-bottom: 0.5rem;
+        }
+
+        #questionHistory .mb-3 {
+            background-color: #f8f9fa;
+            transition: background-color 0.2s ease;
+        }
+
+        #questionHistory .mb-3:hover {
+            background-color: #f0f0f0;
+        }
+
     </style>
 </head>
 <body>
@@ -343,6 +359,7 @@
                     question: randomQuestion.question,
                     answer: randomQuestion.answer,
                     setName: setName,
+                    metadata: randomQuestion.metadata,
                     pdfLink: `https://www.iacompetitions.com/wp-content/uploads/sites/5/2023/08/${setName}.pdf`
                 };
                 
@@ -695,6 +712,36 @@
             });
             
             return text;
+        }
+
+        function showResult(isCorrect, correctAnswer) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="alert ${isCorrect ? 'alert-success' : 'alert-danger'}">
+                    <strong>${isCorrect ? 'Correct!' : 'Incorrect.'}</strong><br>
+                    Answer: ${correctAnswer}<br>
+                    Category: ${currentQuestion.metadata || 'Uncategorized'}<br>
+                    Set: ${currentQuestion.setName}
+                </div>`;
+        }
+
+        function addToQuestionHistory(question, userAnswer, isCorrect) {
+            const historyDiv = document.getElementById('questionHistory');
+            const entry = document.createElement('div');
+            entry.className = 'card mb-3';
+            entry.innerHTML = `
+                <div class="card-body">
+                    <div class="text-muted mb-2">Category: ${question.metadata || 'Uncategorized'}</div>
+                    <div class="mb-2"><strong>Question:</strong> ${question.question}</div>
+                    <div class="mb-2"><strong>Your Answer:</strong> ${userAnswer}</div>
+                    <div class="mb-2"><strong>Correct Answer:</strong> ${question.answer}</div>
+                    <div class="mb-2"><strong>Set:</strong> ${question.setName}</div>
+                    <div class="${isCorrect ? 'text-success' : 'text-danger'}">
+                        <strong>${isCorrect ? 'Correct!' : 'Incorrect'}</strong>
+                    </div>
+                </div>
+            `;
+            historyDiv.insertBefore(entry, historyDiv.firstChild);
         }
     </script>
 
