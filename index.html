@@ -1453,11 +1453,9 @@
         function addToQuestionHistory(question, userAnswer, isCorrect) {
             const historyDiv = document.getElementById('questionHistory');
             const entry = document.createElement('div');
-            const isBeeset = question.setName.toLowerCase().includes('bee');
-            entry.className = `card mb-3 ${isBeeset ? 'history-bee' : 'history-bowl'}`;
+            entry.className = 'card mb-3';
             entry.innerHTML = `
                 <div class="card-body">
-                    <div class="text-muted mb-2">Category: ${question.metadata || 'Uncategorized'}</div>
                     <div class="mb-2"><strong>Question:</strong> ${question.question}</div>
                     <div class="mb-2"><strong>Your Answer:</strong> ${userAnswer}</div>
                     <div class="mb-2"><strong>Correct Answer:</strong> ${question.answer}</div>
@@ -1468,16 +1466,6 @@
                 </div>
             `;
             historyDiv.insertBefore(entry, historyDiv.firstChild);
-            
-            // Save to Firebase if user is logged in
-            if (auth.currentUser) {
-                saveUserProgress({
-                    question,
-                    userAnswer,
-                    isCorrect,
-                    timestamp: new Date().toISOString()
-                });
-            }
         }
 
         async function handleSignUp() {
@@ -1564,7 +1552,7 @@
                 '<div class="alert alert-success">Correct!</div>' : 
                 `<div class="alert alert-danger">Incorrect. The answer was: ${currentQuestion.answer}</div>`;
             
-            // Add to history
+            // Add to history without saving (checkAnswer handles the save)
             addToQuestionHistory(currentQuestion, userAnswer, isCorrect);
             
             // Show next button
