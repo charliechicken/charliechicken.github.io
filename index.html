@@ -1555,7 +1555,11 @@ function checkAnswer(userAnswer, correctAnswer) {
             setName: currentQuestion.setName || ''
         };
         console.log('Saving question data:', questionData);
-        saveUserProgress(questionData);
+        saveUserProgress(questionData).then(() => {
+            console.log('Progress saved successfully');
+        }).catch(error => {
+            console.error('Error saving progress:', error);
+        });
     } else {
         console.log('No user logged in, skipping progress save');
     }
@@ -1574,6 +1578,9 @@ function handleSubmit() {
     resultDiv.innerHTML = isCorrect ? 
         '<div class="alert alert-success">Correct!</div>' : 
         `<div class="alert alert-danger">Incorrect. The answer was: ${currentQuestion.answer}</div>`;
+    
+    // Add to history
+    addToQuestionHistory(currentQuestion, userAnswer, isCorrect);
     
     // Show next button
     document.getElementById('next').style.display = 'block';
