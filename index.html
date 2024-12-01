@@ -186,14 +186,6 @@
             border-color: #1976d2;
         }
 
-        #aiAnalysisBtn {
-            background-color: #4a148c;
-            border: none;
-        }
-
-        #aiAnalysisBtn:hover {
-            background-color: #6a1b9a;
-        }
     </style>
 </head>
 <body>
@@ -567,7 +559,7 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const searchInput = document.getElementById('searchInput');
             
             searchInput.addEventListener('keydown', (event) => {
