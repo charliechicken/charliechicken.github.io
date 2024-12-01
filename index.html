@@ -9,7 +9,7 @@
         <!-- Firebase SDKs -->
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     
         <script>
         // Wait for Firebase SDKs to load
@@ -19,6 +19,7 @@
                 apiKey: "AIzaSyA_bM4yUQkO0ZPowDtfysAhIU7YmNsHmQc",
                 authDomain: "historybowl-4440f.firebaseapp.com",
                 projectId: "historybowl-4440f",
+                databaseURL: "https://historybowl-4440f-default-rtdb.firebaseio.com"
             };
 
             // Initialize Firebase
@@ -26,7 +27,7 @@
 
             // Make Firebase services available globally
             window.auth = firebase.auth();
-            window.db = firebase.firestore();
+            window.db = firebase.database();
 
             // Add debug logging
             console.log('Firebase initialized');
@@ -35,9 +36,9 @@
             });
             
             // Test Firebase connection
-            window.db.collection('users').get()
-                .then(() => console.log('Firestore connected'))
-                .catch(error => console.error('Firestore error:', error));
+            window.db.ref().once('value')
+                .then(() => console.log('Realtime Database connected'))
+                .catch(error => console.error('Database error:', error));
 
             // Auth state observer
             window.auth.onAuthStateChanged(async (user) => {
@@ -48,22 +49,13 @@
                     authButton.textContent = 'Sign Out';
                     userStats.style.display = 'block';
                     
-                    // Load and display user stats
-                    const userDoc = await window.db.collection('users').doc(user.uid).get();
-                    const data = userDoc.data();
-                    if (data?.progress) {
-                        document.getElementById('correctCount').textContent = data.progress.correctAnswers || 0;
-                        document.getElementById('totalCount').textContent = data.progress.questionsAnswered || 0;
-                    } else {
-                        // Initialize progress if it doesn't exist
-                        await window.db.collection('users').doc(user.uid).set({
-                            progress: {
-                                questionsAnswered: 0,
-                                correctAnswers: 0,
-                                history: []
-                            }
-                        });
-                    }
+                    // Listen for realtime updates
+                    const userRef = window.db.ref('users/' + user.uid);
+                    userRef.on('value', (snapshot) => {
+                        const userData = snapshot.val() || { progress: { correctAnswers: 0, questionsAnswered: 0 } };
+                        document.getElementById('correctCount').textContent = userData.progress.correctAnswers;
+                        document.getElementById('totalCount').textContent = userData.progress.questionsAnswered;
+                    });
                 } else {
                     authButton.textContent = 'Sign In';
                     userStats.style.display = 'none';
@@ -74,8 +66,9 @@
         // Firebase helper functions
         async function loadUserProgress(userId) {
             try {
-                const userDoc = await window.db.collection('users').doc(userId).get();
-                const data = userDoc.data();
+                const userRef = window.db.ref('users/' + userId);
+                const snapshot = await userRef.once('value');
+                const data = snapshot.val();
                 if (data?.progress?.history) {
                     const historyDiv = document.getElementById('questionHistory');
                     historyDiv.innerHTML = '';
@@ -89,43 +82,39 @@
         }
 
         async function saveUserProgress(questionData) {
-            console.log('saveUserProgress called with:', questionData);
             const user = window.auth.currentUser;
-            if (!user) {
-                console.log('No user found in saveUserProgress');
-                return;
-            }
+            if (!user) return;
 
             try {
-                console.log('Fetching user doc for:', user.uid);
-                const userRef = window.db.collection('users').doc(user.uid);
-                const doc = await userRef.get();
-                const currentData = doc.data() || { 
-                    progress: { 
+                const userRef = window.db.ref('users/' + user.uid);
+                
+                // Get current data
+                const snapshot = await userRef.once('value');
+                const currentData = snapshot.val() || {
+                    email: user.email,
+                    progress: {
                         questionsAnswered: 0,
                         correctAnswers: 0,
-                        history: [] 
-                    } 
+                        history: []
+                    }
                 };
-                console.log('Current user data:', currentData);
 
+                // Update progress
                 const updatedProgress = {
                     questionsAnswered: (currentData.progress.questionsAnswered || 0) + 1,
                     correctAnswers: (currentData.progress.correctAnswers || 0) + (questionData.isCorrect ? 1 : 0),
                     history: [questionData, ...(currentData.progress.history || []).slice(0, 49)]
                 };
-                console.log('Updating with new progress:', updatedProgress);
 
+                // Save to database
                 await userRef.set({
+                    email: user.email,
                     progress: updatedProgress
-                }, { merge: true });
-                console.log('Firebase update successful');
+                });
 
-                // Update UI
-                document.getElementById('correctCount').textContent = updatedProgress.correctAnswers;
-                document.getElementById('totalCount').textContent = updatedProgress.questionsAnswered;
+                console.log('Database updated:', updatedProgress);
             } catch (error) {
-                console.error("Error saving progress:", error);
+                console.error("Error saving to database:", error);
             }
         }
         </script>
@@ -721,10 +710,6 @@
         .modal-footer .btn-group .btn:not(:last-child) {
             border-top-right-radius: 0;
             border-bottom-right-radius: 0;
-        }
-
-        .modal-footer .btn-group .btn:not(:first-child):not(:last-child) {
-            border-radius: 0;
         }
 
         .modal-footer .btn-group .btn:not(:first-child):not(:last-child) {
@@ -1496,95 +1481,95 @@
         }
 
         async function handleSignUp() {
-    const email = document.getElementById('authEmail').value;
-    const password = document.getElementById('authPassword').value;
-    
-    try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        const user = userCredential.user;
-        await db.collection("users").doc(user.uid).set({
-            email: user.email,
-            progress: {
-                questionsAnswered: 0,
-                correctAnswers: 0,
-                history: []
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                await window.db.ref("users/" + user.uid).set({
+                    email: user.email,
+                    progress: {
+                        questionsAnswered: 0,
+                        correctAnswers: 0,
+                        history: []
+                    }
+                });
+                $('#authModal').modal('hide');
+            } catch (error) {
+                alert(`Error: ${error.message}`);
             }
-        });
-        $('#authModal').modal('hide');
-    } catch (error) {
-        alert(`Error: ${error.message}`);
-    }
-}
+        }
 
-async function handleSignIn() {
-    const email = document.getElementById('authEmail').value;
-    const password = document.getElementById('authPassword').value;
-    
-    try {
-        await auth.signInWithEmailAndPassword(email, password);
-        $('#authModal').modal('hide');
-    } catch (error) {
-        alert(`Error: ${error.message}`);
-    }
-}
+        async function handleSignIn() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                $('#authModal').modal('hide');
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
 
-async function handleSignOut() {
-    try {
-        await window.auth.signOut();
-    } catch (error) {
-        alert(`Error: ${error.message}`);
-    }
-}
+        async function handleSignOut() {
+            try {
+                await window.auth.signOut();
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
 
 
 
-function checkAnswer(userAnswer, correctAnswer) {
-    console.log('checkAnswer called with:', { userAnswer, correctAnswer });
-    const isCorrect = normalizeAnswer(userAnswer) === normalizeAnswer(correctAnswer);
-    console.log('Answer is:', isCorrect ? 'correct' : 'incorrect');
-    
-    if (window.auth?.currentUser) {
-        console.log('User is logged in, preparing to save progress');
-        const questionData = {
-            question: currentQuestion.question,
-            answer: correctAnswer,
-            userAnswer: userAnswer,
-            isCorrect: isCorrect,
-            timestamp: new Date().toISOString(),
-            metadata: currentQuestion.metadata || '',
-            setName: currentQuestion.setName || ''
-        };
-        console.log('Saving question data:', questionData);
-        saveUserProgress(questionData).then(() => {
-            console.log('Progress saved successfully');
-        }).catch(error => {
-            console.error('Error saving progress:', error);
-        });
-    } else {
-        console.log('No user logged in, skipping progress save');
-    }
-    
-    return isCorrect;
-}
+        function checkAnswer(userAnswer, correctAnswer) {
+            console.log('checkAnswer called with:', { userAnswer, correctAnswer });
+            const isCorrect = normalizeAnswer(userAnswer) === normalizeAnswer(correctAnswer);
+            console.log('Answer is:', isCorrect ? 'correct' : 'incorrect');
+            
+            if (window.auth?.currentUser) {
+                console.log('User is logged in, preparing to save progress');
+                const questionData = {
+                    question: currentQuestion.question,
+                    answer: correctAnswer,
+                    userAnswer: userAnswer,
+                    isCorrect: isCorrect,
+                    timestamp: new Date().toISOString(),
+                    metadata: currentQuestion.metadata || '',
+                    setName: currentQuestion.setName || ''
+                };
+                console.log('Saving question data:', questionData);
+                saveUserProgress(questionData).then(() => {
+                    console.log('Progress saved successfully');
+                }).catch(error => {
+                    console.error('Error saving progress:', error);
+                });
+            } else {
+                console.log('No user logged in, skipping progress save');
+            }
+            
+            return isCorrect;
+        }
 
-// Make sure checkAnswer is called when submitting an answer
-function handleSubmit() {
-    console.log('handleSubmit called');
-    const userAnswer = document.getElementById('answer').value.trim();
-    const isCorrect = checkAnswer(userAnswer, currentQuestion.answer);
-    
-    // Show result
-    const resultDiv = document.getElementById('result');
-    resultDiv.innerHTML = isCorrect ? 
-        '<div class="alert alert-success">Correct!</div>' : 
-        `<div class="alert alert-danger">Incorrect. The answer was: ${currentQuestion.answer}</div>`;
-    
-    // Add to history
-    addToQuestionHistory(currentQuestion, userAnswer, isCorrect);
-    
-    // Show next button
-    document.getElementById('next').style.display = 'block';
-}
+        // Make sure checkAnswer is called when submitting an answer
+        function handleSubmit() {
+            console.log('handleSubmit called');
+            const userAnswer = document.getElementById('answer').value.trim();
+            const isCorrect = checkAnswer(userAnswer, currentQuestion.answer);
+            
+            // Show result
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = isCorrect ? 
+                '<div class="alert alert-success">Correct!</div>' : 
+                `<div class="alert alert-danger">Incorrect. The answer was: ${currentQuestion.answer}</div>`;
+            
+            // Add to history
+            addToQuestionHistory(currentQuestion, userAnswer, isCorrect);
+            
+            // Show next button
+            document.getElementById('next').style.display = 'block';
+        }
     </script>
 
     <!-- Search Modal -->
